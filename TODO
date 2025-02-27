@@ -1,0 +1,12 @@
+[x] Set up config -- 12 factor app
+[ ] Improve testing -- Maybe don't use shell scripts. Prefer python based test harness
+[ ] Dynamic registration of anomaly dectors. 
+    Would be nice to not have to touch the factory when a new detectors is written.
+    Have to update provider mapping in factory as wwell as in monitoring service
+[ ] Anomaly identification. Currently multiple anomaly can be reported for the same hour. Some tidying up there is necessary
+[ ] CI system
+[ ] Improve docker image
+    - Multistage build
+    - Compile with nuitka
+
+
