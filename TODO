@@ -1,0 +1,4 @@
+[x] Set up config -- 12 factor app
+[ ] Improve testing -- Maybe don't use shell scripts. Prefer python based test harness
+
+
