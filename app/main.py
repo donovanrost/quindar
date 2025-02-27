@@ -6,7 +6,6 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(config)
     
-    # Register API Blueprint
     app.register_blueprint(bp, url_prefix='/api')
 
     return app

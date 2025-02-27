@@ -1,8 +1,22 @@
+
 import pandas as pd
 import logging
 from app.core.exceptions import InvalidFileFormatException
+from app.core.anomaly_detectors.factory import AnomalyDetectorFactory
 
 logger = logging.getLogger(__name__)
+
+PROVIDER_MAP = {
+    "QDR": "QDR",
+    "KSAT": "KSAT",
+}
+
+def get_provider_from_station_id(station_id):
+    """Determines the provider based on the station_id prefix."""
+    for prefix, provider in PROVIDER_MAP.items():
+        if station_id.startswith(prefix):
+            return provider
+    return "UNKNOWN"  # Default if no match is found
 
 class MonitoringService:
     REQUIRED_COLUMNS = {"station_id", "num_contacts", "total_bytes_received", "total_bytes_sent"}
@@ -20,40 +34,27 @@ class MonitoringService:
             df['total_data_transferred'] = df['total_bytes_sent'] + df['total_bytes_received']
             total_data_transferred = df['total_data_transferred'].sum()
 
-            # Detect anomalies
-            anomalies = self.detect_anomalies(df)
+            # Assign provider dynamically
+            df['provider'] = df['station_id'].apply(get_provider_from_station_id)
+
+            # Determine providers and use correct anomaly detector
+            providers = df['provider'].unique()
+            anomalies = []
+
+            for provider in providers:
+                if provider == "UNKNOWN":
+                    logger.warning("Detected unknown provider in dataset.")
+                provider_df = df[df['provider'] == provider]
+                detector = AnomalyDetectorFactory.get_detector(provider)
+                anomalies.extend(detector.detect_anomalies(provider_df))
 
             return {
                 "stations_processed": df['station_id'].nunique(),
                 "total_data_transferred": f"{total_data_transferred / 1e9:.2f} GB",
                 "anomalies_detected": len(anomalies),
-                "anomaly_details": anomalies
+                "anomaly_details": [a.to_dict() for a in anomalies]
             }
         
         except Exception as e:
             logger.error(f"Error processing file: {str(e)}")
             raise
-
-    def detect_anomalies(self, df):
-        """Detects anomalies in the dataset."""
-        anomalies = []
-
-        for _, row in df.iterrows():
-            station = row['station_id']
-            num_contacts = row['num_contacts']
-            total_bytes_received = row['total_bytes_received']
-            total_bytes_sent = row['total_bytes_sent']
-
-            if num_contacts > 0 and total_bytes_received == 0:
-                anomalies.append({
-                    "station": station,
-                    "issue": "Contacts initiated but no data received"
-                })
-
-            if num_contacts > 0 and total_bytes_sent == 0 and total_bytes_received == 0:
-                anomalies.append({
-                    "station": station,
-                    "issue": "No data sent or received despite contacts"
-                })
-
-        return anomalies
